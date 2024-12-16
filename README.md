@@ -1,0 +1,1 @@
+draft a readme on variables to provide with terraform apply (prefix, location and subscription_id)
