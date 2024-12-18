@@ -61,7 +61,7 @@ resource "azurerm_network_security_group" "nsg" {
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    source_address_prefix      = "102.89.46.40"  # Admin/Ansible machine
+    source_address_prefix      = "52.158.234.17"  # Admin/Ansible machine
     destination_port_range     = "22"
     destination_address_prefix = "*"
   }
