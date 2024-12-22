@@ -17,3 +17,6 @@ crash.log
 # Ignore sensitive data and private keys (if applicable)
 *.pem
 *.key
+
+# Custom
+.hidefiles

@@ -26,12 +26,37 @@ resource "azapi_resource_action" "ssh_public_key_gen" {
   }
 }
 
-resource "local_file" "ssh_private_key" {
-  content  = azapi_resource_action.ssh_public_key_gen.output.privateKey
-  filename = "${path.module}/ssh-private-key.pem"
+resource "azurerm_key_vault" "vmss_ubuntu_vault" {
+  name                = "vmss-ubuntu-vault"
+  location            = "West US 2"
+  resource_group_name = "ubuntu-resources"
+  tenant_id = data.azurerm_client_config.current.tenant_id
+  sku_name = "standard"
+  purge_protection_enabled = false
 }
 
-resource "local_file" "ssh_public_key" {
-  content  = azapi_resource_action.ssh_public_key_gen.output.publicKey
-  filename = "${path.module}/ssh-public-key.pub"
+# integrate this with vmss-ubuntu-vault key vault created in ubuntu-resources resource group in main.tf
+resource "azurerm_key_vault_secret" "ssh_public_key" {
+  name         = "ssh-public-key"
+  value        = azapi_resource_action.ssh_public_key_gen.output.publicKey
+  key_vault_id = azurerm_key_vault.vmss_ubuntu_vault.id
+}
+
+# generate a private key and store it in the key vault
+resource "azurerm_key_vault_secret" "ssh_private_key" {
+  name         = "ssh-private-key"
+  value        = azapi_resource_action.ssh_public_key_gen.output.privateKey
+  key_vault_id = azurerm_key_vault.vmss_ubuntu_vault.id
+}
+
+# ensure key vault access policy is set to allow the vmss to access the key vault
+resource "azurerm_key_vault_access_policy" "vmss_access_policy" {
+  key_vault_id = azurerm_key_vault.vmss_ubuntu_vault.id
+
+  tenant_id = data.azurerm_client_config.current.tenant_id
+  object_id = azurerm_linux_virtual_machine_scale_set.vmss.identity[0].principal_id
+
+  secret_permissions = [
+    "Get", "List", "Set"
+  ]
 }

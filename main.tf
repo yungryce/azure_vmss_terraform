@@ -1,3 +1,5 @@
+data "azurerm_client_config" "current" {}
+
 resource "random_pet" "rg_name" {
   prefix = var.resource_group_name_prefix
 }
@@ -131,7 +133,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "vmss" {
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   sku                 = "Standard_DS1_v2"
-  instances           = 3
+  instances           = 2
   admin_username      = var.username
   eviction_policy     = "Deallocate"
   priority            = "Spot"
@@ -172,6 +174,8 @@ resource "azurerm_linux_virtual_machine_scale_set" "vmss" {
   }
 
   depends_on = [
+    azurerm_key_vault_secret.ssh_public_key,
+    azurerm_key_vault_secret.ssh_private_key,
     azurerm_subnet_network_security_group_association.subnet_nsg,
     azurerm_lb_backend_address_pool.lb_backend
   ]
@@ -184,16 +188,41 @@ resource "azurerm_linux_virtual_machine_scale_set" "vmss" {
 # Reference the existing storage account without managing it
 data "azurerm_storage_account" "sa" {
   name                = "vmssscript9s"
-  resource_group_name = "ubuntu-resources"  # Replace with the actual resource group of your storage account
+  resource_group_name = "ubuntu-resources"
 }
 
-# Role Assignment for Managed Identity to access the storage account
-resource "azurerm_role_assignment" "vmss_storage_access" {
+resource "azurerm_role_assignment" "vmss_access_to_storage" {
   principal_id         = azurerm_linux_virtual_machine_scale_set.vmss.identity[0].principal_id
-  role_definition_name = "Storage Blob Data Reader"
+  role_definition_name = "Storage Blob Data Contributor"
   scope                = data.azurerm_storage_account.sa.id
 }
 
+resource "azurerm_virtual_network" "vnet_ubuntu" {
+  name                = "ubuntu22-vnet"
+  location            = "West US 2"
+  resource_group_name = "ubuntu-resources"
+  address_space       = ["10.1.0.0/16"]
+}
+
+resource "azurerm_virtual_network_peering" "peering_vmss_to_ubuntu" {
+  name                      = "peering-vmss-to-ubuntu"
+  resource_group_name       = azurerm_resource_group.rg.name
+  virtual_network_name      = azurerm_virtual_network.vnet.name  # VMSS VNet
+  remote_virtual_network_id = azurerm_virtual_network.vnet_ubuntu.id  # Ubuntu VM's VNet
+  
+  allow_virtual_network_access = true
+  allow_forwarded_traffic     = true
+}
+
+resource "azurerm_virtual_network_peering" "peering_ubuntu_to_vmss" {
+  name                      = "peering-ubuntu-to-vmss"
+  resource_group_name       = "ubuntu-resources"
+  virtual_network_name      = azurerm_virtual_network.vnet_ubuntu.name  # Ubuntu VM's VNet
+  remote_virtual_network_id = azurerm_virtual_network.vnet.id  # VMSS VNet
+  
+  allow_virtual_network_access = true
+  allow_forwarded_traffic     = true
+}
 
 # Adding custom_script_extension for Ansible installation
 resource "azurerm_virtual_machine_scale_set_extension" "vmss_extension" {
