@@ -48,7 +48,7 @@ resource "azurerm_network_security_group" "nsg" {
     access                     = "Deny"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    source_address_prefix      = "52.158.254.96"  # Load Balancer's public IP
+    source_address_prefix      = "*"  # Load Balancer's public IP
     destination_port_range     = "22"
     destination_address_prefix = "*"
   }
@@ -61,7 +61,7 @@ resource "azurerm_network_security_group" "nsg" {
     access                     = "Allow"
     protocol                   = "Tcp"
     source_port_range          = "*"
-    source_address_prefix      = "52.158.234.17"  # Admin/Ansible machine
+    source_address_prefix      = "10.1.0.0/16"  # Admin/Ansible machine
     destination_port_range     = "22"
     destination_address_prefix = "*"
   }
@@ -131,11 +131,15 @@ resource "azurerm_linux_virtual_machine_scale_set" "vmss" {
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
   sku                 = "Standard_DS1_v2"
-  instances           = 2
+  instances           = 3
   admin_username      = var.username
   eviction_policy     = "Deallocate"
   priority            = "Spot"
   max_bid_price       = 0.5
+
+  identity {
+    type = "SystemAssigned"
+  }
 
   admin_ssh_key {
     username   = var.username
@@ -154,8 +158,6 @@ resource "azurerm_linux_virtual_machine_scale_set" "vmss" {
     storage_account_type = "Standard_LRS"
     disk_size_gb         = 30
   }
-
-  custom_data = base64encode(file("${path.module}/cloud-init.yml"))
 
   network_interface {
     name    = "vmss-nic"
@@ -177,4 +179,35 @@ resource "azurerm_linux_virtual_machine_scale_set" "vmss" {
   tags = {
     environment = "dev"
   }
+}
+
+# Reference the existing storage account without managing it
+data "azurerm_storage_account" "sa" {
+  name                = "vmssscript9s"
+  resource_group_name = "ubuntu-resources"  # Replace with the actual resource group of your storage account
+}
+
+# Role Assignment for Managed Identity to access the storage account
+resource "azurerm_role_assignment" "vmss_storage_access" {
+  principal_id         = azurerm_linux_virtual_machine_scale_set.vmss.identity[0].principal_id
+  role_definition_name = "Storage Blob Data Reader"
+  scope                = data.azurerm_storage_account.sa.id
+}
+
+
+# Adding custom_script_extension for Ansible installation
+resource "azurerm_virtual_machine_scale_set_extension" "vmss_extension" {
+  name                 = "ansible-installation"
+  virtual_machine_scale_set_id = azurerm_linux_virtual_machine_scale_set.vmss.id
+  publisher             = "Microsoft.Azure.Extensions"
+  type                  = "CustomScript"
+  type_handler_version  = "2.1"
+
+  settings = jsonencode({
+  "commandToExecute" = "echo 'Hello World' > /var/log/initfile.log"
+  })
+
+  depends_on = [
+    azurerm_linux_virtual_machine_scale_set.vmss
+  ]
 }
