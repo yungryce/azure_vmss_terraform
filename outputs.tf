@@ -18,3 +18,6 @@ output "load_balancer_ip" {
   value = azurerm_public_ip.lb_public_ip.ip_address
 }
 
+# output "ssh_public_key_id" {
+#   value = data.azapi_resource.ssh_public_key_data.id
+# }

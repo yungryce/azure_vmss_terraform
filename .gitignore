@@ -19,4 +19,4 @@ crash.log
 *.key
 
 # Custom
-.hidefiles
+private/
