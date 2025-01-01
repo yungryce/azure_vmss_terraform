@@ -172,8 +172,6 @@ resource "azurerm_linux_virtual_machine_scale_set" "vmss" {
   }
 
   depends_on = [
-    # azurerm_key_vault_secret.ssh_public_key,
-    # azurerm_key_vault_secret.ssh_private_key,
     azurerm_subnet_network_security_group_association.subnet_nsg,
     azurerm_lb_backend_address_pool.lb_backend
   ]
