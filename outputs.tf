@@ -21,3 +21,22 @@ output "load_balancer_ip" {
 # output "ssh_public_key_id" {
 #   value = data.azapi_resource.ssh_public_key_data.id
 # }
+
+# azurerm_linux_virtual_machine_scale_set.vmss.identity[0].principal_id
+output "vmss_principal_id" {
+  value = azurerm_linux_virtual_machine_scale_set.vmss.identity[0].principal_id
+}
+
+# azurerm_key_vault.vmss_ubuntu_vault.id
+output "key_vault_id" {
+  value = azurerm_key_vault.vmss_ubuntu_vault.id
+}
+
+output "key_vault_secret_ids" {
+  value = [azurerm_key_vault_secret.ssh_public_key.id, azurerm_key_vault_secret.ssh_private_key.id]
+}
+
+# data.azurerm_client_config.current.tenant_id
+output "tenant_id" {
+  value = data.azurerm_client_config.current.tenant_id
+}

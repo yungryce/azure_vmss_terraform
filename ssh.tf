@@ -55,9 +55,12 @@ resource "azurerm_key_vault_access_policy" "vmss_access_policy" {
   object_id = azurerm_linux_virtual_machine_scale_set.vmss.identity[0].principal_id
 
   secret_permissions = [
-    "Get", "List", "Set"
+    "Get", "List", "Set", "Delete"
   ]
-  key_permissions    = ["Get", "List"] 
+
+  key_permissions = [
+    "Get", "List", "Update", "Create", "Import"
+  ]
   
   depends_on = [ azurerm_linux_virtual_machine_scale_set.vmss ]
 }
