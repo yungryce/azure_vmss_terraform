@@ -1,4 +1,8 @@
-data "azurerm_client_config" "current" {}
+resource "azurerm_role_assignment" "vm_sp_role_assignment" {
+  principal_id         = "9be0116e-18a0-4a6a-8a37-27d049d0c235"
+  role_definition_name = "Contributor"
+  scope                = azurerm_resource_group.rg.id
+}
 
 resource "random_pet" "ssh_key_name" {
   prefix    = "ssh"
@@ -10,6 +14,7 @@ resource "azapi_resource" "ssh_public_key" {
   name      = random_pet.ssh_key_name.id
   location  = azurerm_resource_group.rg.location
   parent_id = azurerm_resource_group.rg.id
+
   depends_on = [azurerm_resource_group.rg]
 }
 
@@ -27,16 +32,14 @@ resource "azapi_resource_action" "ssh_public_key_gen" {
     create = "10m"
   }
 
-  depends_on = [azapi_resource.ssh_public_key]
+  depends_on = [
+    azapi_resource.ssh_public_key,
+    azurerm_role_assignment.vm_sp_role_assignment
+    ]
 }
 
-# resource "azurerm_role_assignment" "ubuntu22_access_to_ssh_keys" {
-#   principal_id           = "9be0116e-18a0-4a6a-8a37-27d049d0c235" # modify to use local-exec to get the principal id
-#   role_definition_name   = "Contributor"  # Role for read access
-#   scope                  = "/subscriptions/105a58e6-5ddb-4fca-a952-fc0f81314fdc/resourceGroups/rg-guiding-stallion"  # Scope is the vmss resource group
-#   depends_on           = [azapi_resource.ssh_public_key, azapi_resource_action.ssh_public_key_gen]
-# }
-
+# get the tenant id from the current client config
+data "azurerm_client_config" "current" {}
 
 resource "azurerm_key_vault" "vmss_ubuntu_vault" {
   name                = "vmss-ubuntu-vault"
@@ -47,7 +50,7 @@ resource "azurerm_key_vault" "vmss_ubuntu_vault" {
   purge_protection_enabled = false
 }
 
-# ensure key vault access policy is set to allow the vmss to access the key vault
+# ensure key vault access policy is set to allow tprincipal client to access the key vault
 resource "azurerm_key_vault_access_policy" "vmss_access_policy" {
   key_vault_id = azurerm_key_vault.vmss_ubuntu_vault.id
 
@@ -61,8 +64,6 @@ resource "azurerm_key_vault_access_policy" "vmss_access_policy" {
   key_permissions = [
     "Get", "List", "Update", "Create", "Import"
   ]
-  
-  depends_on = [ azurerm_linux_virtual_machine_scale_set.vmss ]
 }
 
 # integrate this with vmss-ubuntu-vault key vault created in ubuntu-resources resource group in main.tf
@@ -70,7 +71,10 @@ resource "azurerm_key_vault_secret" "ssh_public_key" {
   name         = "ssh-public-key"
   value        = azapi_resource_action.ssh_public_key_gen.output.publicKey
   key_vault_id = azurerm_key_vault.vmss_ubuntu_vault.id
-  depends_on = [ azurerm_linux_virtual_machine_scale_set.vmss ]
+  depends_on = [ 
+    azurerm_linux_virtual_machine_scale_set.vmss,
+    azurerm_key_vault_secret.ssh_public_key
+    ]
 }
 
 # generate a private key and store it in the key vault
@@ -78,5 +82,8 @@ resource "azurerm_key_vault_secret" "ssh_private_key" {
   name         = "ssh-private-key"
   value        = azapi_resource_action.ssh_public_key_gen.output.privateKey
   key_vault_id = azurerm_key_vault.vmss_ubuntu_vault.id
-  depends_on = [ azurerm_linux_virtual_machine_scale_set.vmss ]
+  depends_on = [ 
+    azurerm_linux_virtual_machine_scale_set.vmss,
+    azurerm_key_vault_secret.ssh_public_key
+    ]
 }

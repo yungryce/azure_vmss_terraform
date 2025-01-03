@@ -40,3 +40,8 @@ output "key_vault_secret_ids" {
 output "tenant_id" {
   value = data.azurerm_client_config.current.tenant_id
 }
+
+# azurerm_resource_group.rg.id
+output "resource_group_id" {
+  value = azurerm_resource_group.rg.id
+}
