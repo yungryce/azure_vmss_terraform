@@ -1,7 +1,17 @@
+# get the tenant id from the current client config
+data "azurerm_client_config" "current" {
+
+}
+
 resource "azurerm_role_assignment" "vm_sp_role_assignment" {
   principal_id         = "9be0116e-18a0-4a6a-8a37-27d049d0c235"
   role_definition_name = "Contributor"
   scope                = azurerm_resource_group.rg.id
+}
+
+resource "time_sleep" "wait_for_role_assignment" {
+  create_duration = "30s"
+  depends_on      = [azurerm_role_assignment.vm_sp_role_assignment]
 }
 
 resource "random_pet" "ssh_key_name" {
@@ -10,12 +20,11 @@ resource "random_pet" "ssh_key_name" {
 }
 
 resource "azapi_resource" "ssh_public_key" {
-  type      = "Microsoft.Compute/sshPublicKeys@2022-11-01"
+  depends_on = [ time_sleep.wait_for_role_assignment ]
+  type      = "Microsoft.Compute/sshPublicKeys@2024-07-01"
   name      = random_pet.ssh_key_name.id
   location  = azurerm_resource_group.rg.location
   parent_id = azurerm_resource_group.rg.id
-
-  depends_on = [azurerm_resource_group.rg]
 }
 
 # Retry if authentication fails
@@ -31,15 +40,7 @@ resource "azapi_resource_action" "ssh_public_key_gen" {
   timeouts {
     create = "10m"
   }
-
-  depends_on = [
-    azapi_resource.ssh_public_key,
-    azurerm_role_assignment.vm_sp_role_assignment
-    ]
 }
-
-# get the tenant id from the current client config
-data "azurerm_client_config" "current" {}
 
 resource "azurerm_key_vault" "vmss_ubuntu_vault" {
   name                = "vmss-ubuntu-vault"
@@ -50,7 +51,7 @@ resource "azurerm_key_vault" "vmss_ubuntu_vault" {
   purge_protection_enabled = false
 }
 
-# ensure key vault access policy is set to allow tprincipal client to access the key vault
+# ensure key vault access policy is set to allow principal client to access the key vault
 resource "azurerm_key_vault_access_policy" "vmss_access_policy" {
   key_vault_id = azurerm_key_vault.vmss_ubuntu_vault.id
 
@@ -71,7 +72,7 @@ resource "azurerm_key_vault_secret" "ssh_public_key" {
   name         = "ssh-public-key"
   value        = azapi_resource_action.ssh_public_key_gen.output.publicKey
   key_vault_id = azurerm_key_vault.vmss_ubuntu_vault.id
-  depends_on = [ 
+  depends_on = [
     azurerm_linux_virtual_machine_scale_set.vmss,
     azurerm_key_vault_secret.ssh_public_key
     ]
