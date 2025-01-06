@@ -1,22 +1,106 @@
-# Ignore the Terraform working directory
-.terraform/
-
-# Ignore Terraform state files
-*.tfstate
-*.tfstate.*
-
-# Ignore crash logs and backup files
-crash.log
-*.tfvars
-*.tfvars.json
-*.backup
-
-# Ignore CLI-driven files
-.terraform.tfstate.lock.info
-
-# Ignore sensitive data and private keys (if applicable)
-*.pem
-*.key
 
 # Custom
 private/
+
+
+# --- Terraform ---
+*.tfstate
+*.tfstate.backup
+.terraform/
+.terraform.lock.hcl
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+
+# --- Ansible ---
+*.retry
+*.vault
+*.log
+# Ignore inventory files if generated dynamically
+inventory
+host_vars/*
+group_vars/*
+# Exclude temporary files
+*.tmp
+*.bak
+*.swp
+*.swo
+*.~*
+# Ignore encrypted files if using ansible-vault
+*.vault.yml
+*.vault.json
+
+# --- Kubernetes ---
+# Ignore sensitive or auto-generated kubeconfigs
+kubeconfig
+.kube/
+*.yaml~  # Backup YAML files
+*.yml~   # Backup YAML files
+
+# --- General Logs and System Files ---
+*.log
+*.out
+*.err
+*.pid
+*.swp
+*.swo
+*.~*
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.iml
+
+# --- Python Virtual Environments (if using) ---
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.env
+*.venv
+Pipfile.lock
+
+# --- Node.js (if applicable for scripts/tools) ---
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# --- Secrets and Keys ---
+*.pem
+*.crt
+*.key
+*.env
+.env.*
+secrets.yaml
+secrets.yml
+
+# --- CI/CD Specific ---
+# Azure DevOps
+*.coverage
+*.coveragexml
+*.testResults
+.env.local
+# GitHub Actions
+.github/workflows/*.secrets
+
+# --- Ignore Generated Files ---
+# Helm Charts
+charts/
+# Terraform Plan Outputs
+*.tfplan
+# Auto-generated Kubernetes manifests
+*.generated.yaml
+*.generated.yml
+
+# --- Other ---
+# Temporary or user-specific files
+*.bak
+*.swp
+*.swo
+*.tmp
+*.backup
+*.orig

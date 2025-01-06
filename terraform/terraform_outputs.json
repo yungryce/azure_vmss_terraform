@@ -1,0 +1,51 @@
+{
+  "key_vault_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "vmss-ubuntu-vault"
+  },
+  "key_vault_secret_names": {
+    "sensitive": false,
+    "type": [
+      "tuple",
+      [
+        "string",
+        "string"
+      ]
+    ],
+    "value": [
+      "ssh-public-key",
+      "ssh-private-key"
+    ]
+  },
+  "load_balancer_ip": {
+    "sensitive": false,
+    "type": "string",
+    "value": "20.191.90.223"
+  },
+  "resource_group_id": {
+    "sensitive": false,
+    "type": "string",
+    "value": "/subscriptions/105a58e6-5ddb-4fca-a952-fc0f81314fdc/resourceGroups/rg-giving-narwhal"
+  },
+  "resource_group_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "rg-giving-narwhal"
+  },
+  "subnet_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "sub-polite-hornet"
+  },
+  "virtual_network_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "vnet-super-krill"
+  },
+  "vmss_name": {
+    "sensitive": false,
+    "type": "string",
+    "value": "vmss-optimal-macaque"
+  }
+}

@@ -170,6 +170,8 @@ resource "azurerm_linux_virtual_machine_scale_set" "vmss" {
       primary                                = true
     }
   }
+  
+  custom_data = base64encode(file("scripts/initfile.sh"))
 
   depends_on = [
     azurerm_subnet_network_security_group_association.subnet_nsg,
@@ -220,19 +222,3 @@ resource "azurerm_virtual_network_peering" "peering_ubuntu_to_vmss" {
   allow_forwarded_traffic     = true
 }
 
-# Adding custom_script_extension for Ansible installation
-resource "azurerm_virtual_machine_scale_set_extension" "vmss_extension" {
-  name                 = "ansible-installation"
-  virtual_machine_scale_set_id = azurerm_linux_virtual_machine_scale_set.vmss.id
-  publisher             = "Microsoft.Azure.Extensions"
-  type                  = "CustomScript"
-  type_handler_version  = "2.1"
-
-  settings = jsonencode({
-  "commandToExecute" = "echo 'Hello World' > /var/log/initfile.log"
-  })
-
-  depends_on = [
-    azurerm_linux_virtual_machine_scale_set.vmss
-  ]
-}

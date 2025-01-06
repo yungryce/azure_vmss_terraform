@@ -1,5 +1,8 @@
 #!/usr/bin/env bash
 
+# Create a log file
+echo "Hello World. This is VM instance $(hostname)." > /var/log/custom_data.log
+
 # Update Ubuntu
 sudo apt update -y
 sudo apt upgrade -y
