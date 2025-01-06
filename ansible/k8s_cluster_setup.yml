@@ -1,0 +1,124 @@
+---
+- name: Install packages and set up Kubernetes cluster
+  hosts: vmss
+  become: true
+  vars:
+    # Kubernetes version
+    kubernetes_version: "1.24.0"
+    # Docker version
+    docker_version: "20.10.9"
+    # Set the Kubernetes cluster name
+    cluster_name: "my-k8s-cluster"
+  
+  tasks:
+    - name: Update apt cache and upgrade all packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+        cache_valid_time: 3600
+
+    - name: Install necessary system packages
+      apt:
+        name:
+          - apt-transport-https
+          - ca-certificates
+          - curl
+          - software-properties-common
+        state: present
+
+    - name: Add Docker repository
+      apt_repository:
+        repo: "deb https://download.docker.com/linux/ubuntu {{ ansible_distribution_release | lower }} stable"
+        state: present
+
+    - name: Install Docker
+      apt:
+        name: "docker-ce={{ docker_version }}"
+        state: present
+
+    - name: Start Docker service
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Add Kubernetes APT repository
+      apt_repository:
+        repo: "deb https://apt.kubernetes.io/ kubernetes-xenial main"
+        state: present
+
+    - name: Add the Kubernetes signing key
+      command: curl -s https://packages.cloud.google.com/apt/doc/apt-key.gpg | apt-key add -
+
+    - name: Install kubeadm, kubelet, and kubectl
+      apt:
+        name:
+          - kubeadm={{ kubernetes_version }}
+          - kubelet={{ kubernetes_version }}
+          - kubectl={{ kubernetes_version }}
+        state: present
+
+    - name: Disable swap (required for Kubernetes)
+      command: swapoff -a
+      ignore_errors: yes
+
+    - name: Ensure swap is disabled on boot
+      lineinfile:
+        path: /etc/fstab
+        regexp: '^/swap'
+        line: '#/swap'
+
+    - name: Create Kubernetes Deployment
+      kubernetes.core.k8s:
+        state: present
+        kubeconfig: ~/.kube/config
+        definition:
+          apiVersion: apps/v1
+          kind: Deployment
+          metadata:
+            name: myapp
+          spec:
+            replicas: 3
+            template:
+              spec:
+                containers:
+                  - name: myapp
+                    image: myapp:latest
+
+    - name: Initialize Kubernetes Master Node (if master)
+      when: inventory_hostname == groups['vmss'][0]
+      command: "kubeadm init --pod-network-cidr=10.244.0.0/16"
+      register: kubeadm_init
+
+    - name: Set up kubeconfig for user (on master)
+      when: inventory_hostname == groups['vmss'][0]
+      copy:
+        content: "{{ kubeadm_init.stdout_lines | join('\n') }}"
+        dest: /home/azureuser/.kube/config
+        owner: azureuser
+        group: azureuser
+        mode: '0644'
+
+    - name: Install Flannel CNI (Container Network Interface) plugin (on master)
+      when: inventory_hostname == groups['vmss'][0]
+      command: "kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml"
+
+    - name: Join worker nodes to the Kubernetes cluster
+      when: inventory_hostname != groups['vmss'][0]
+      command: "{{ hostvars[groups['vmss'][0]].kubeadm_init.stdout_lines | select('search', 'kubeadm join') | first }}"
+      delegate_to: "{{ groups['vmss'][0] }}"
+
+    - name: Ensure kubelet service is started
+      service:
+        name: kubelet
+        state: started
+        enabled: yes
+
+    - name: Wait for Kubernetes master node to be ready
+      when: inventory_hostname == groups['vmss'][0]
+      wait_for:
+        host: "{{ inventory_hostname }}"
+        port: 6443
+        state: started
+        delay: 10
+        timeout: 300
