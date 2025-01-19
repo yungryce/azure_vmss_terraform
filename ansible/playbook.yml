@@ -1,0 +1,10 @@
+---
+- name: Install packages and set up Kubernetes cluster
+  hosts: vmss
+  become: true
+  roles:
+    - common
+    - docker
+    - kubernetes
+    # - nginx
+...

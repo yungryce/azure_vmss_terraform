@@ -1,0 +1,34 @@
+---
+- name: Stop kubelet service
+  service:
+    name: kubelet
+    state: stopped
+    enabled: no
+
+- name: Stop containerd service
+  service:
+    name: containerd
+    state: stopped
+    enabled: no
+
+- name: Remove Kubernetes manifests
+  file:
+    path: /etc/kubernetes/manifests
+    state: absent
+
+- name: Remove Kubernetes configuration directory
+  file:
+    path: /etc/kubernetes
+    state: absent
+
+- name: Remove etcd data directory
+  file:
+    path: /var/lib/etcd
+    state: absent
+
+- name: Ensure ports are free
+  shell: |
+    for port in 6443 10259 10257 10250 2379 2380; do
+      fuser -k $port/tcp || true
+    done
+  ignore_errors: true

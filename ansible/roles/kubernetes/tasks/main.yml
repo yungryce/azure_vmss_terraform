@@ -1,0 +1,79 @@
+---
+- name: Cleanup existing Kubernetes configuration
+  include_tasks: roles/kubernetes/tasks/cleanup_kubernetes.yml
+
+- name: Add Kubernetes GPG key using apt_key
+  apt_key:
+    url: https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key
+    state: present
+    keyring: /etc/apt/keyrings/kubernetes-apt-keyring.gpg
+
+- name: Add Kubernetes repository using apt_repository
+  apt_repository:
+    repo: 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /'
+    state: present
+    filename: kubernetes
+    update_cache: yes
+
+- name: Update apt cache and install Kubernetes packages
+  apt:
+    name:
+      - kubeadm
+      - kubelet
+      - kubectl
+    state: present
+    force: yes
+    update_cache: yes
+
+- name: disable UFW firewall for labs
+  service:
+    name: ufw
+    state: stopped
+    enabled: false
+
+- name: Disable swap (required for Kubernetes)
+  shell: |
+    if free | grep -q 'Swap: *[1-9]'; then
+      swapoff -a
+    fi
+
+- name: Ensure swap is disabled on boot
+  lineinfile:
+    path: /etc/fstab
+    regexp: '^/swap'
+    line: '#/swap'
+
+- name: Load br_netfilter module
+  modprobe:
+    name: br_netfilter
+    state: present
+
+- name: ensure net.bridge.bridge-nf-call-ip6tables is set to 1
+  sysctl:
+    name: net.bridge.bridge-nf-call-iptables
+    value: '1'
+    state: present
+    reload: yes
+
+- name: Ensure kubelet service is started
+  service:
+    name: kubelet
+    state: started
+    enabled: yes
+
+- name: Include master node configuration (if master)
+  include_tasks: roles/kubernetes/tasks/master.yml
+  when: hostvars[inventory_hostname].is_master
+
+- name: Include worker node configuration (if worker)
+  include_tasks: roles/kubernetes/tasks/worker.yml
+  when: hostvars[inventory_hostname].is_worker
+
+- name: Wait for Kubernetes master node to be ready
+  when: hostvars[inventory_hostname].is_master
+  wait_for:
+    host: "{{ hostvars[inventory_hostname].ansible_host }}"
+    port: 6443
+    state: started
+    delay: 10
+    timeout: 300

@@ -1,0 +1,11 @@
+# Define the Docker Edition
+docker_edition: 'ce'
+
+# Define the Docker packages
+docker_packages:
+  - "docker-{{ docker_edition }}"
+  - "docker-{{ docker_edition }}-cli"
+  - "docker-{{ docker_edition }}-rootless-extras"
+
+# Ensure the required Docker packages are installed
+docker_packages_state: present

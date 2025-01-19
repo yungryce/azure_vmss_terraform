@@ -3,8 +3,11 @@
     "children": {
       "vmss": {
         "hosts": {
-          "10.0.1.4": {},
-          "10.0.1.6": {}
+          "null": {
+            "is_master": false,
+            "is_worker": true,
+            "node_name": "vmss-bright-boar_1"
+          }
         },
         "vars": {
           "ansible_user": "azureadmin",

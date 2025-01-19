@@ -1,0 +1,46 @@
+---
+- name: Update apt cache and upgrade all packages
+  apt:
+    update_cache: yes
+    upgrade: dist
+    autoremove: yes
+    cache_valid_time: 3600
+
+- name: Install necessary system packages
+  apt:
+    name:
+      - apt-transport-https
+      - ca-certificates
+      - curl
+      - software-properties-common
+    state: present
+
+- name: Ensure /etc/apt/keyrings exists
+  file:
+    path: /etc/apt/keyrings
+    state: directory
+    mode: '0755'
+
+- name: Ensure azureadmin has passwordless sudo
+  become: true
+  lineinfile:
+    path: /etc/sudoers
+    state: present
+    regexp: '^azureadmin ALL=\(ALL\) NOPASSWD:ALL'
+    line: 'azureadmin ALL=(ALL) NOPASSWD:ALL'
+    validate: 'visudo -cf %s'
+
+- name: Copy requirements.yml to remote
+  copy:
+    src: "{{ requirements_file }}"
+    dest: /tmp/requirements.yml
+    mode: '0644'
+
+- name: Install Ansible collections
+  ansible.builtin.command:
+    cmd: ansible-galaxy collection install -r /tmp/requirements.yml
+  register: galaxy_install_output
+  changed_when: galaxy_install_output.rc == 0
+  retries: 3
+  delay: 5
+  until: galaxy_install_output is succeeded

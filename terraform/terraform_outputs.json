@@ -21,31 +21,31 @@
   "load_balancer_ip": {
     "sensitive": false,
     "type": "string",
-    "value": "20.191.90.223"
+    "value": "20.191.117.239"
   },
   "resource_group_id": {
     "sensitive": false,
     "type": "string",
-    "value": "/subscriptions/105a58e6-5ddb-4fca-a952-fc0f81314fdc/resourceGroups/rg-giving-narwhal"
+    "value": "/subscriptions/105a58e6-5ddb-4fca-a952-fc0f81314fdc/resourceGroups/rg-crucial-hermit"
   },
   "resource_group_name": {
     "sensitive": false,
     "type": "string",
-    "value": "rg-giving-narwhal"
+    "value": "rg-crucial-hermit"
   },
   "subnet_name": {
     "sensitive": false,
     "type": "string",
-    "value": "sub-polite-hornet"
+    "value": "sub-climbing-bulldog"
   },
   "virtual_network_name": {
     "sensitive": false,
     "type": "string",
-    "value": "vnet-super-krill"
+    "value": "vnet-primary-badger"
   },
   "vmss_name": {
     "sensitive": false,
     "type": "string",
-    "value": "vmss-optimal-macaque"
+    "value": "vmss-bright-boar"
   }
 }

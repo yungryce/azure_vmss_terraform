@@ -130,7 +130,7 @@ resource "azurerm_linux_virtual_machine_scale_set" "vmss" {
   name                = random_pet.vmss_name.id
   location            = azurerm_resource_group.rg.location
   resource_group_name = azurerm_resource_group.rg.name
-  sku                 = "Standard_DS1_v2"
+  sku                 = "Standard_D2s_v5"
   instances           = 2
   admin_username      = var.username
   eviction_policy     = "Deallocate"

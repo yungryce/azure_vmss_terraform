@@ -1,0 +1,5 @@
+# vars:
+
+
+# /home/azureuser/terraform/azure_vmss_terraform/ansible/roles/common/vars/main.yml
+requirements_file: "/home/azureuser/terraform/azure_vmss_terraform/ansible/requirements.yml"
