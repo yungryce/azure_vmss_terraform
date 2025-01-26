@@ -4,7 +4,7 @@
   become: true
   roles:
     - common
-    - docker
-    - kubernetes
+    - containerd
+    - k8s
     # - nginx
-...
+    # - docker

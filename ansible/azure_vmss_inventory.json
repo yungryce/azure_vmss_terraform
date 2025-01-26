@@ -3,10 +3,15 @@
     "children": {
       "vmss": {
         "hosts": {
-          "null": {
+          "10.0.1.6": {
+            "is_master": true,
+            "is_worker": false,
+            "node_name": "vmss-profound-shiner-2"
+          },
+          "10.0.1.7": {
             "is_master": false,
             "is_worker": true,
-            "node_name": "vmss-bright-boar_1"
+            "node_name": "vmss-profound-shiner-3"
           }
         },
         "vars": {

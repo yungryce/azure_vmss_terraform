@@ -1,0 +1,70 @@
+---
+- name: Set the system hostname
+  ansible.builtin.hostname:
+    name: "{{ hostvars[inventory_hostname].node_name }}"
+  become: true
+
+- name: Add hostname and IP to /etc/hosts
+  ansible.builtin.lineinfile:
+    path: /etc/hosts
+    regexp: "^{{ ansible_host }}\\s+{{ hostvars[inventory_hostname].node_name }}"
+    line: "{{ ansible_host }} {{ hostvars[inventory_hostname].node_name }}"
+    create: yes
+  notify: Restart containerd
+  become: true
+
+- name: Restart hostname service to apply changes
+  ansible.builtin.systemd:
+    name: systemd-logind
+    state: restarted
+  when: ansible_os_family == "Debian"
+  become: true
+
+- name: Initialize Kubernetes Master Node with advertise address
+  become: true
+  when: hostvars[inventory_hostname].is_master
+  command: >-
+    kubeadm init
+    --pod-network-cidr=10.244.0.0/16
+    --node-name={{ hostvars[inventory_hostname].node_name }}
+    --cri-socket=unix:///var/run/containerd/containerd.sock
+    --apiserver-advertise-address={{ ansible_host }}
+  register: kubeadm_init
+  retries: 3
+  delay: 60
+  until: kubeadm_init is succeeded
+
+- name: Create .kube directory for user on master
+  become: true
+  when: hostvars[inventory_hostname].is_master
+  file:
+    path: /root/.kube
+    state: directory
+    mode: '0755'
+
+- name: Copy admin kubeconfig to root
+  copy:
+    src: /etc/kubernetes/admin.conf
+    dest: /root/.kube/config
+    owner: root
+    group: root
+    mode: '0644'
+    remote_src: yes
+  become: true
+
+- name: Validate kubeconfig YAML syntax
+  become: true
+  command: "kubectl config view --kubeconfig=/root/.kube/config -o yaml"
+  register: kubeconfig_validation
+  failed_when: kubeconfig_validation.rc != 0
+
+- name: Install Flannel CNI (Container Network Interface) plugin
+  when: hostvars[inventory_hostname].is_master
+  become: true
+  environment:
+    KUBECONFIG: /root/.kube/config
+  command: "kubectl apply -f https://raw.githubusercontent.com/coreos/flannel/master/Documentation/kube-flannel.yml"
+  register: flannel
+  retries: 5
+  delay: 10
+  until: flannel.rc == 0

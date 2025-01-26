@@ -1,0 +1,55 @@
+---
+- name: Remove Docker and related packages
+  shell: |
+    for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do
+      sudo apt-get remove -y $pkg
+    done
+  args:
+    warn: false
+  register: remove_conflicts
+  changed_when: true
+  failed_when: false
+
+- name: Debug output of removed packages
+  debug:
+    msg: "{{ remove_conflicts.stdout.splitlines() if remove_conflicts.stdout else 'No packages were removed or task not executed.' }}"
+  when: not ansible_check_mode
+
+- name: Install containerd
+  apt:
+    name:
+      - containerd
+    state: present
+    update_cache: true
+
+- name: Ensure /etc/containerd directory exists
+  file:
+    path: /etc/containerd
+    state: directory
+    mode: '0755'
+
+- name: Generate containerd configuration if not present
+  command: containerd config default
+  register: containerd_config_output
+  changed_when: false
+
+- name: Write containerd configuration
+  copy:
+    content: "{{ containerd_config_output.stdout }}"
+    dest: /etc/containerd/config.toml
+    force: false
+    mode: '0644'
+  notify: Restart containerd
+
+- name: Update sandbox_image to use pause:3.10
+  replace:
+    path: /etc/containerd/config.toml
+    regexp: 'sandbox_image = "registry.k8s.io/pause:3.*"'
+    replace: 'sandbox_image = "registry.k8s.io/pause:3.10"'
+
+- name: Use systemd as the cgroup driver
+  replace:
+    path: /etc/containerd/config.toml
+    regexp: '^(\s*)SystemdCgroup = false'
+    replace: '\1SystemdCgroup = true'
+  notify: Restart containerd

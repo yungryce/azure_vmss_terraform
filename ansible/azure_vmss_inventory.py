@@ -12,6 +12,7 @@ if os.path.exists(terraform_outputs_path):
         tf_outputs = json.load(tf_outputs_file)
 else:
     print(f"Error: {terraform_outputs_path} not found.")
+    exit(1)
     
 resource_group_name = tf_outputs["resource_group_name"]["value"]
 vmss_name = tf_outputs["vmss_name"]["value"]
@@ -31,41 +32,44 @@ def get_vmss_instances():
             "--name",
             vmss_name,
             "--query",
-            "[].{privateIp: networkProfile.networkInterfaces[0].ipConfigurations[0].privateIPAddress, instanceName: name}",
+            "[].name",
             "-o",
             "json",
         ]
         result = subprocess.check_output(cmd, universal_newlines=True)
         vmss_instances = json.loads(result)
+        return vmss_instances
     except Exception as e:
         print(f"Error fetching VMSS instances: {e}")
-    return vmss_instances
+        return []
 
 
 # Fetch VMSS instance IPs dynamically using Azure CLI
-# def get_vmss_ips():
-#     vmss_ips = []
-#     try:
-#         # Replace 'vmss-name' and 'resource-group' with your VMSS name and resource group
-#         cmd = [
-#             "az",
-#             "vmss",
-#             "nic",
-#             "list",
-#             "--resource-group",
-#             resource_group_name,
-#             "--vmss-name",
-#             vmss_name,
-#             "--query",
-#             "[].ipConfigurations[?primary].privateIPAddress",
-#             "-o",
-#             "tsv",
-#         ]
-#         result = subprocess.check_output(cmd, universal_newlines=True).splitlines()
-#         vmss_ips = [{"host": ip, "ansible_user": "azureadmin"} for ip in result]
-#     except Exception as e:
-#         print(f"Error fetching VMSS IPs: {e}")
-#     return vmss_ips
+def get_vmss_ips():
+    vmss_ips = []
+    try:
+        # Replace 'vmss-name' and 'resource-group' with your VMSS name and resource group
+        cmd = [
+            "az",
+            "vmss",
+            "nic",
+            "list",
+            "--resource-group",
+            resource_group_name,
+            "--vmss-name",
+            vmss_name,
+            "--query",
+            "[].ipConfigurations[?primary].privateIPAddress",
+            "-o",
+            "json",
+        ]
+        result = subprocess.check_output(cmd, universal_newlines=True)
+        ip_lists = json.loads(result)
+        vmss_ips = [ip for item in ip_lists for ip in (item if isinstance(item, list) else [item])]
+        return vmss_ips
+    except Exception as e:
+        print(f"Error fetching VMSS IPs: {e}")
+        return []
 
 # Fetch SSH private key from Azure Key Vault
 def get_ssh_private_key():
@@ -88,21 +92,27 @@ def get_ssh_private_key():
             "--query",
             "value",
             "-o",
-            "tsv",
+            "json",
         ]
-        private_key = subprocess.check_output(cmd, universal_newlines=True).strip()
-
+        result = subprocess.check_output(cmd, universal_newlines=True)
+        private_key = json.loads(result)
+        
+        if not private_key:
+            print("Error: SSH private key not found in Key Vault.")
+            exit(1)
+        
         # Write the private key to a file
         with open("ssh_private_key.pem", "w") as key_file:
             key_file.write(private_key)
         
         # Set the appropriate file permissions
         os.chmod("ssh_private_key.pem", 0o400)
+        print("SSH private key fetched and saved.")
     except Exception as e:
         print(f"Error fetching SSH private key: {e}")
 
 
-def generate_inventory(vmss_instances):
+def generate_inventory(vmss_instances, vmss_ips):
     inventory = {
         "all": {
             "children": {
@@ -117,15 +127,22 @@ def generate_inventory(vmss_instances):
         }
     }
     
-    for index, vm in enumerate(vmss_instances):
-        host_key = vm["privateIp"]        # Use privateIp as the host key
-        node_name = vm["instanceName"]    # Use instanceName as the node name
-
-        inventory["all"]["children"]["vmss"]["hosts"][host_key] = {
+    if len(vmss_instances) != len(vmss_ips):
+        print("Warning: Number of instances and IPs do not match.")
+    
+    for index, (instance_name, ip) in enumerate(zip(vmss_instances, vmss_ips)):
+        if not isinstance(ip, str):
+            print(f"Warning: IP for instance {instance_name} is not a string. Skipping.")
+            continue
+        if not ip:
+            print(f"Warning: No IP found for instance {instance_name}. Skipping.")
+            continue
+        inventory["all"]["children"]["vmss"]["hosts"][ip] = {
             "is_master": index == 0,
             "is_worker": index != 0,
-            "node_name": node_name
+            "node_name": instance_name.replace('_', '-')
         }
+        print(f"Host: {ip}, Node Name: {instance_name}, is_master: {index == 0}, is_worker: {index != 0}")
 
     return inventory
 
@@ -142,9 +159,9 @@ def generate_inventory(vmss_instances):
 
 if __name__ == "__main__":
     get_ssh_private_key() # Fetch SSH private key from Azure Key Vault
-    # vmss_ips = get_vmss_ips()
-    vmss_ips = get_vmss_instances()
-    inventory = generate_inventory(vmss_ips)
+    vmss_instances = get_vmss_instances()
+    vmss_ips = get_vmss_ips()
+    inventory = generate_inventory(vmss_instances, vmss_ips)
 
     # Write the inventory to a file
     with open("azure_vmss_inventory.json", "w") as inventory_file:
