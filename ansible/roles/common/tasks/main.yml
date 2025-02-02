@@ -30,17 +30,3 @@
     line: 'azureadmin ALL=(ALL) NOPASSWD:ALL'
     validate: 'visudo -cf %s'
 
-- name: Copy requirements.yml to remote
-  copy:
-    src: "{{ requirements_file }}"
-    dest: /tmp/requirements.yml
-    mode: '0644'
-
-- name: Install Ansible collections
-  ansible.builtin.command:
-    cmd: ansible-galaxy collection install -r /tmp/requirements.yml
-  register: galaxy_install_output
-  changed_when: galaxy_install_output.rc == 0
-  retries: 3
-  delay: 5
-  until: galaxy_install_output is succeeded

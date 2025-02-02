@@ -1,0 +1,78 @@
+- name: Ensure pip is installed on master
+  ansible.builtin.apt:
+    name: python3-pip
+    state: present
+  become: true
+  when: hostvars[inventory_hostname].is_master
+
+- name: Install python kubernetes library on master
+  pip:
+    name: kubernetes
+  become: true
+  when: hostvars[inventory_hostname].is_master
+  # Ensure you are installing into the same Python environment Ansible uses
+  # Optionally, set ansible_python_interpreter if necessary
+
+- name: Copy nginx manifests to master
+  become: true
+  when: hostvars[inventory_hostname].is_master
+  copy:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    mode: '0644'
+  with_items:
+    - src: 'files/nginx-deployment.yml'
+      dest: '/tmp/nginx-deployment.yml'
+    - src: 'files/nginx-svc.yml'
+      dest: '/tmp/nginx-svc.yml'
+
+- name: Deploy manifest from file on master
+  become: true
+  when: hostvars[inventory_hostname].is_master
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/nginx-deployment.yml
+    namespace: default
+  run_once: true
+  environment:
+    KUBECONFIG: /root/.kube/config
+
+- name: Deploy nginx service manifest
+  become: true
+  when: hostvars[inventory_hostname].is_master
+  kubernetes.core.k8s:
+    state: present
+    src: /tmp/nginx-svc.yml
+    namespace: default
+  run_once: true
+  environment:
+    KUBECONFIG: /root/.kube/config
+
+- name: Wait for nginx pod to be ready
+  become: true
+  when: hostvars[inventory_hostname].is_master
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: default
+    label_selectors:
+      - app=nginx
+    wait: yes
+    wait_condition:
+      type: Ready
+      status: "True"
+  register: nginx_pod
+  environment:
+    KUBECONFIG: /root/.kube/config
+
+- name: Get nginx service NodePort
+  become: true
+  when: hostvars[inventory_hostname].is_master
+  shell: kubectl get svc nginx-service -o jsonpath='{.spec.ports[0].nodePort}'
+  register: nodeport
+  environment:
+    KUBECONFIG: /root/.kube/config
+
+- name: Debug NodePort
+  debug:
+    msg: "Nginx is accessible on port {{ nodeport.stdout }}"
+  when: hostvars[inventory_hostname].is_master

@@ -6,5 +6,6 @@
     - common
     - containerd
     - k8s
+    - manifests
     # - nginx
     # - docker

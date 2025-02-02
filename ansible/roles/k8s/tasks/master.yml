@@ -58,6 +58,16 @@
   register: kubeconfig_validation
   failed_when: kubeconfig_validation.rc != 0
 
+- name: Export KUBECONFIG to environment for all users
+  become: true
+  copy:
+    dest: /etc/profile.d/kubecfg.sh
+    content: |
+      #!/bin/sh
+      export KUBECONFIG=/root/.kube/config
+    mode: '0755'
+  run_once: true
+
 - name: Install Flannel CNI (Container Network Interface) plugin
   # when: hostvars[inventory_hostname].is_master
   become: true

@@ -89,8 +89,8 @@
 
 - name: Include master node configuration (if master)
   import_tasks: master.yml
-  when: "hostvars[inventory_hostname].is_master"
-  become: true  
+  when: hostvars[inventory_hostname].is_master
+  become: true
 
 - name: Wait for Kubernetes master node to be ready
   ansible.builtin.wait_for:
