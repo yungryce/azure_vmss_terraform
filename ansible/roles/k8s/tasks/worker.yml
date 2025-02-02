@@ -1,21 +1,14 @@
 ---
-# - name: Save join command on master
-#   when: hostvars[inventory_hostname].is_master
-#   shell: kubeadm token create --print-join-command > /tmp/kubeadm_join_cmd
-#   delegate_to: localhost
+- name: Debug join command on worker nodes
+  debug:
+    msg: "Join command retrieved: {{ join_command }}"
 
-# - name: Join worker nodes to the cluster
-#   when: hostvars[inventory_hostname].is_worker
-#   command: bash /tmp/kubeadm_join_cmd
-#   delegate_to: "{{ hostvars | dict2items | selectattr('value.is_master', 'equalto', True) | first | map(attribute='key') | first }}"
-
-
-- name: Save join command on master
-  when: hostvars[inventory_hostname].is_master
-  shell: kubeadm token create --print-join-command --cri-socket=unix:///var/run/containerd/containerd.sock > /tmp/kubeadm_join_cmd
-  delegate_to: localhost
+- name: Set join command fact on workers
+  set_fact:
+    join_command: "{{ hostvars[(hostvars | dict2items | selectattr('value.is_master', 'equalto', true) | first).key].join_command }}"
+  delegate_to: "{{ (hostvars | dict2items | selectattr('value.is_master', 'equalto', true) | first).key }}"
+  run_once: true
 
 - name: Join worker nodes to the cluster
-  when: hostvars[inventory_hostname].is_worker
-  command: bash /tmp/kubeadm_join_cmd
-  delegate_to: "{{ hostvars | dict2items | selectattr('value.is_master', 'equalto', True) | first | map(attribute='key') | first }}"
+  become: true
+  command: "{{ join_command }}"

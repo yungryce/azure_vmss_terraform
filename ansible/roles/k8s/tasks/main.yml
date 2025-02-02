@@ -92,17 +92,18 @@
   when: "hostvars[inventory_hostname].is_master"
   become: true  
 
-- name: Include worker node configuration (if worker)
-  import_tasks: worker.yml
-  when: hostvars[inventory_hostname].is_worker
-  become: true
-
 - name: Wait for Kubernetes master node to be ready
   ansible.builtin.wait_for:
-    host: "{{ hostvars[inventory_hostname].ansible_host }}"
+    host: "{{ inventory_hostname }}"
     port: 6443
     state: started
     delay: 10
     timeout: 300
   when: hostvars[inventory_hostname].is_master
   become: true
+
+- name: Include worker node configuration (if worker)
+  import_tasks: worker.yml
+  when: hostvars[inventory_hostname].is_worker
+  become: true
+

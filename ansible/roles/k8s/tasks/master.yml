@@ -36,7 +36,7 @@
 
 - name: Create .kube directory for user on master
   become: true
-  when: hostvars[inventory_hostname].is_master
+  # when: hostvars[inventory_hostname].is_master
   file:
     path: /root/.kube
     state: directory
@@ -59,7 +59,7 @@
   failed_when: kubeconfig_validation.rc != 0
 
 - name: Install Flannel CNI (Container Network Interface) plugin
-  when: hostvars[inventory_hostname].is_master
+  # when: hostvars[inventory_hostname].is_master
   become: true
   environment:
     KUBECONFIG: /root/.kube/config
@@ -68,3 +68,17 @@
   retries: 5
   delay: 10
   until: flannel.rc == 0
+
+- name: Generate kubeadm join command on master
+  # when: hostvars[inventory_hostname].is_master
+  become: true
+  command: kubeadm token create --print-join-command
+  register: kubeadm_join_cmd
+  run_once: true
+
+- name: Set join command fact on master
+  # when: hostvars[inventory_hostname].is_master/
+  set_fact:
+    join_command: "{{ kubeadm_join_cmd.stdout }}"
+  run_once: true
+  

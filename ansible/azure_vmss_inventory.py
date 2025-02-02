@@ -146,17 +146,6 @@ def generate_inventory(vmss_instances, vmss_ips):
 
     return inventory
 
-    # Assign the first VM as the master
-    # for index, vm in enumerate(vmss_instances):
-    #     host_key = vm["host"]  # Host IP or name
-    #     inventory["all"]["children"]["vmss"]["hosts"][host_key] = {
-    #         "is_master": index == 0,  # True for the first VM
-    #         "is_worker": index != 0,  # True for the others
-    #         "node_name": vm["name"]
-    #     }
-
-    # return inventory
-
 if __name__ == "__main__":
     get_ssh_private_key() # Fetch SSH private key from Azure Key Vault
     vmss_instances = get_vmss_instances()
