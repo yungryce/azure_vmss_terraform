@@ -80,11 +80,12 @@
     reload: true
   become: true
 
-- name: Ensure kubelet service is started
-  ansible.builtin.service:
-    name: kubelet
-    state: started
-    enabled: true
+- name: Configure kubelet to use systemd as cgroup driver
+  lineinfile:
+    path: /etc/default/kubelet
+    regexp: '^KUBELET_EXTRA_ARGS='
+    line: 'KUBELET_EXTRA_ARGS=--cgroup-driver=systemd'
+  notify: Restart kubelet
   become: true
 
 - name: Include master node configuration (if master)

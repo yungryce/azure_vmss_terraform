@@ -1,0 +1,3 @@
+git_repository: "git@github.com:yungryce/azure_vmss_terraform.git"
+git_branch: "main"
+manifests_path: "./clusters/development"

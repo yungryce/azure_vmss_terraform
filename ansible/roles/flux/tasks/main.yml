@@ -1,0 +1,36 @@
+---
+- name: Add Flux Helm repository
+  kubernetes.core.helm_repository:
+    name: fluxcd
+    repo_url: https://fluxcd.github.io/flux2
+    state: present
+
+- name: Create flux-system namespace
+  kubernetes.core.k8s:
+    name: flux-system
+    api_version: v1
+    kind: Namespace
+    state: present
+
+- name: Install Flux using Helm
+  kubernetes.core.helm:
+    name: flux
+    chart_ref: fluxcd/flux2
+    release_namespace: flux-system
+    create_namespace: true
+    values:
+      git:
+        url: "{{ git_repository }}"
+        branch: "{{ git_branch }}"
+        path: "{{ manifests_path }}"
+
+- name: Wait for Flux pods
+  kubernetes.core.k8s_info:
+    kind: Pod
+    namespace: flux-system
+    label_selectors:
+      - app=flux
+  register: flux_pods
+  until: flux_pods.resources | length > 0 and (flux_pods.resources | map(attribute='status.phase') | list | unique == ['Running'])
+  retries: 30
+  delay: 10
